@@ -18,12 +18,27 @@
                 <button id="search-btn">Buscar</button>
             </div>
             <!--Botón nuevo proyecto-->
-            <button id="new-project-btn" class="action-btn">Agregar nuevo proyecto</button>
+            <div class="boton-nuevo-wrapper">
+                <button id="new-project-btn" class="action-btn">Agregar nuevo proyecto</button>
+            </div>
         </header>
         <main class="main-content">
             <!-- Tarjetas nuevos proyectos -->
         </main>
     </div>
+
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Nuevo Proyecto</h2>
+            <form id="formularioProyecto">
+                <input type="text" id="inputId" placeholder="ID del proyecto" required />
+                <input type="text" id="inputNombre" placeholder="Nombre del proyecto" required />
+                <input type="text" id="inputCliente" placeholder="Cliente o constructora" required />
+                <button type="submit">Guardar</button>
+            </form>
+        </div>
+    </div>
+
 </body>
 
 </html>

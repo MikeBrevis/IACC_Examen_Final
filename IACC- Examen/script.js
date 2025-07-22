@@ -4,40 +4,49 @@ const botonAgregar = document.getElementById('new-project-btn');
 // Detectar el contenedor de tarjetas (main-content)
 const contenedorProyectos = document.querySelector('.main-content');
 
-// Imprimir un mensaje de prueba al hacer clic en el botón
+
+// Detectar elementos
+const modal = document.getElementById('modal');
+const formulario = document.getElementById('formularioProyecto');
+const inputId = document.getElementById('inputId');
+const inputNombre = document.getElementById('inputNombre');
+const inputCliente = document.getElementById('inputCliente');
+
+// Función para abrir el modal
 botonAgregar.addEventListener('click', () => {
+    modal.classList.remove('hidden');
+  });
 
-    // Solicitar al usuario los datos del proyecto
-    const idProyecto = prompt("Ingrese el ID del proyecto:");
-    const nombreProyecto = prompt("Ingrese el nombre del proyecto:");
-    const clienteProyecto = prompt("Ingrese el nombre del cliente:");
-
-    // Validar que los datos no estén vacíos
+// formulario del modal
+formulario.addEventListener('submit', (e) => {
+    e.preventDefault();
+  
+    const idProyecto = inputId.value.trim();
+    const nombreProyecto = inputNombre.value.trim();
+    const clienteProyecto = inputCliente.value.trim();
+  
     if (!idProyecto || !nombreProyecto || !clienteProyecto) {
-        alert("Por favor, complete todos los campos.");
-        return;
+      alert('Todos los campos son obligatorios.');
+      return;
     }
+  
+    fetch('proyectoNuevo.html')
+      .then(response => response.text())
+      .then(html => {
+        const tarjetaProyecto = document.createElement('div');
+        tarjetaProyecto.innerHTML = html;
+  
+        tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + idProyecto;
+        tarjetaProyecto.querySelector('.project-name').textContent = nombreProyecto;
+        tarjetaProyecto.querySelector('.project-company').textContent = clienteProyecto;
+  
+        contenedorProyectos.appendChild(tarjetaProyecto);
+  
+        // Limpiar y cerrar
+        formulario.reset();
+        modal.classList.add('hidden');
+      });
+  });
 
-    // Crear una nueva tarjeta de proyecto
-    fetch("proyectoNuevo.html")
-        .then(response => response.text())
-        .then(html => {
-            const tarjetaProyecto = document.createElement('div');
-            tarjetaProyecto.innerHTML = html;
-            
-            const idElement = tarjetaProyecto.querySelector('.project-id');
-            const nameElement = tarjetaProyecto.querySelector('.project-name');
-            const companyElement = tarjetaProyecto.querySelector('.project-company');    
-            
-            idElement.textContent = "ID: " + idProyecto;
-            nameElement.textContent = nombreProyecto;
-            companyElement.textContent = clienteProyecto;
 
-            contenedorProyectos.appendChild(tarjetaProyecto);
-            console.log('Tarjeta insertada:', tarjetaProyecto);
-
-        })
-        .catch(error => console.error('Error al cargar el HTML:', error));
-
-});
-
+  
