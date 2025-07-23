@@ -322,3 +322,22 @@ body {
     border-radius: 4px;
     cursor: pointer;
 }
+
+.componentes-botones {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+}
+.btn-total, .btn-agregar {
+    padding: 6px 14px;
+    border-radius: 4px;
+    border: none;
+    background-color: #3498db;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.95em;
+    transition: background 0.2s;
+}
+.btn-total:hover, .btn-agregar:hover {
+    background-color: #217dbb;
+}
