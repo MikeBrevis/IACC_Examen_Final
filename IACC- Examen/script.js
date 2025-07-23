@@ -42,6 +42,8 @@ document.body.appendChild(modalEmergente);
 
 // Objeto para almacenar los datos de componentes por proyecto
 const componentesPorProyecto = new Map();
+// Objeto para almacenar los envíos por proyecto
+const enviosPorProyecto = new Map();
 
 // Lógica para mostrar mensaje al seleccionar archivo y evitar recarga
 modalEmergente.addEventListener('change', (e) => {
@@ -86,8 +88,11 @@ modalEmergente.addEventListener('submit', async (e) => {
 
 // Delegación de eventos para los botones de cada tarjeta
 contenedorProyectos.addEventListener('click', (e) => {
-    // Botón agregar componente (cargar excel)
-    if (e.target.classList.contains('btn-agregar')) {
+    // Botón agregar componente (cargar excel) - solo si es el botón de componentes
+    if (
+        e.target.classList.contains('btn-agregar') &&
+        e.target.textContent.trim().toLowerCase() === 'agregar'
+    ) {
         // Buscar el id del proyecto asociado a la tarjeta
         const card = e.target.closest('.project-card');
         let idProyecto = '';
@@ -153,6 +158,112 @@ contenedorProyectos.addEventListener('click', (e) => {
             contenedorTabla.innerHTML = '<p>No hay componentes cargados para este proyecto.</p>';
         }
         modalTabla.classList.remove('hidden');
+    }
+    // Botón listado de envíos
+    if (
+        e.target.classList.contains('btn-agregar') &&
+        e.target.textContent.trim().toLowerCase() === 'listado de envios'
+    ) {
+        const card = e.target.closest('.project-card');
+        let idProyecto = '';
+        if (card) {
+            const idSpan = card.querySelector('.project-id');
+            if (idSpan) {
+                idProyecto = idSpan.textContent.replace('ID:','').trim();
+            }
+        }
+        // Modal para mostrar los envíos
+        let modalEnvios = document.getElementById('modalEnviosProyecto');
+        if (!modalEnvios) {
+            modalEnvios = document.createElement('div');
+            modalEnvios.id = 'modalEnviosProyecto';
+            modalEnvios.className = 'modal hidden';
+            modalEnvios.innerHTML = `
+                <div class="modal-content" style="max-width:600px;max-height:80vh;overflow:auto;">
+                    <h2>Listado de envíos</h2>
+                    <div id="enviosProyectoContainer"></div>
+                    <button id="nuevoEnvioBtn">Nuevo envío</button>
+                    <button id="cerrarEnviosBtn">Cerrar</button>
+                </div>
+            `;
+            document.body.appendChild(modalEnvios);
+            // Cerrar modal
+            modalEnvios.addEventListener('click', (ev) => {
+                if (ev.target.id === 'cerrarEnviosBtn' || ev.target === modalEnvios) {
+                    modalEnvios.classList.add('hidden');
+                }
+            });
+        }
+        // Renderizar lista de envíos
+        function renderEnvios() {
+            const envios = enviosPorProyecto.get(idProyecto) || [];
+            const cont = modalEnvios.querySelector('#enviosProyectoContainer');
+            if (envios.length === 0) {
+                cont.innerHTML = '<p>No hay envíos registrados para este proyecto.</p>';
+            } else {
+                let html = '<ul style="list-style:none;padding:0;">';
+                envios.forEach((envio, idx) => {
+                    html += `<li style='margin-bottom:10px;'>
+                        <button class='toggle-componentes' data-idx='${idx}' style='margin-bottom:4px;'>Envío #${idx+1} (${envio.fecha})</button>
+                        <div class='componentes-envio' id='componentes-envio-${idx}' style='display:none;margin-left:20px;'>
+                            <ul>`;
+                    envio.componentes.forEach(comp => {
+                        html += `<li>${comp}</li>`;
+                    });
+                    html += `</ul>
+                        </div>
+                    </li>`;
+                });
+                html += '</ul>';
+                cont.innerHTML = html;
+            }
+        }
+        renderEnvios();
+        // Toggle para mostrar componentes de cada envío
+        modalEnvios.querySelector('#enviosProyectoContainer').onclick = function(ev) {
+            if (ev.target.classList.contains('toggle-componentes')) {
+                const idx = ev.target.getAttribute('data-idx');
+                const div = modalEnvios.querySelector(`#componentes-envio-${idx}`);
+                if (div) {
+                    div.style.display = div.style.display === 'none' ? 'block' : 'none';
+                }
+            }
+        };
+        // Nuevo envío: permite seleccionar componentes a enviar
+        modalEnvios.querySelector('#nuevoEnvioBtn').onclick = function() {
+            const datos = componentesPorProyecto.get(idProyecto) || [];
+            if (datos.length <= 1) {
+                alert('No hay componentes cargados para este proyecto.');
+                return;
+            }
+            // Mostrar formulario para seleccionar componentes
+            let formHtml = '<form id="formNuevoEnvio">';
+            formHtml += '<p>Selecciona los componentes a enviar:</p>';
+            datos.slice(1).forEach((row, idx) => {
+                formHtml += `<label><input type='checkbox' name='comp' value='${row.join(' | ')}'> ${row.join(' | ')}</label><br>`;
+            });
+            formHtml += '<button type="submit">Registrar envío</button> <button type="button" id="cancelarEnvioBtn">Cancelar</button></form>';
+            modalEnvios.querySelector('#enviosProyectoContainer').innerHTML = formHtml;
+            // Cancelar
+            modalEnvios.querySelector('#cancelarEnvioBtn').onclick = function() {
+                renderEnvios();
+            };
+            // Registrar envío
+            modalEnvios.querySelector('#formNuevoEnvio').onsubmit = function(ev) {
+                ev.preventDefault();
+                const seleccionados = Array.from(modalEnvios.querySelectorAll('input[name="comp"]:checked')).map(cb => cb.value);
+                if (seleccionados.length === 0) {
+                    alert('Selecciona al menos un componente.');
+                    return;
+                }
+                const fecha = new Date().toLocaleString();
+                const envios = enviosPorProyecto.get(idProyecto) || [];
+                envios.push({fecha, componentes: seleccionados});
+                enviosPorProyecto.set(idProyecto, envios);
+                renderEnvios();
+            };
+        };
+        modalEnvios.classList.remove('hidden');
     }
 });
 
