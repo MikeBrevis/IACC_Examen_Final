@@ -48,5 +48,35 @@ formulario.addEventListener('submit', (e) => {
       });
   });
 
+// Modal de confirmación
+const confirmModal = document.getElementById('confirmModal');
+const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
 
-  
+let proyectoAEliminar = null;
+
+// Delegación de eventos para el botón borrar
+contenedorProyectos.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-delete')) {
+        proyectoAEliminar = e.target.closest('.project-card');
+        confirmModal.classList.remove('hidden');
+    }
+});
+
+// Confirmar eliminación
+confirmDeleteBtn.addEventListener('click', () => {
+    if (proyectoAEliminar) {
+        proyectoAEliminar.remove();
+        proyectoAEliminar = null;
+    }
+    confirmModal.classList.add('hidden');
+});
+
+// Cancelar eliminación
+cancelDeleteBtn.addEventListener('click', () => {
+    proyectoAEliminar = null;
+    confirmModal.classList.add('hidden');
+});
+
+
+

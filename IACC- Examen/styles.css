@@ -301,3 +301,24 @@ body {
         box-shadow: 0 0 0 4px lighten(red, 40%);
     }
 }
+
+#confirmModal .modal-content {
+    text-align: center;
+}
+#confirmDeleteBtn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    margin-right: 10px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+#cancelDeleteBtn {
+    background-color: #bdc3c7;
+    color: #333;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
