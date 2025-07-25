@@ -326,6 +326,43 @@ contenedorProyectos.addEventListener('click', (e) => {
         };
         modalEnvios.classList.remove('hidden');
     }
+    // Botón listado de componentes pendientes
+    if (
+        e.target.classList.contains('btn-agregar') &&
+        e.target.textContent.trim().toLowerCase() === 'listado componentes pendientes'
+    ) {
+        // Buscar el id del proyecto asociado a la tarjeta
+        const card = e.target.closest('.project-card');
+        let idProyecto = '';
+        if (card) {
+            const idSpan = card.querySelector('.project-id');
+            if (idSpan) {
+                idProyecto = idSpan.textContent.replace('ID:','').trim();
+            }
+        }
+        // Modal para mostrar los componentes pendientes
+        let modalPendientes = document.getElementById('modalPendientesProyecto');
+        if (!modalPendientes) {
+            modalPendientes = document.createElement('div');
+            modalPendientes.id = 'modalPendientesProyecto';
+            modalPendientes.className = 'modal hidden';
+            modalPendientes.innerHTML = `
+                <div class="modal-content" style="max-width:600px;max-height:80vh;overflow:auto;">
+                    <h2>Listado de componentes pendientes</h2>
+                    <div id="pendientesProyectoContainer">(Próximamente aquí se mostrarán los componentes pendientes)</div>
+                    <button id="cerrarPendientesBtn">Cerrar</button>
+                </div>
+            `;
+            document.body.appendChild(modalPendientes);
+            // Cerrar modal
+            modalPendientes.addEventListener('click', (ev) => {
+                if (ev.target.id === 'cerrarPendientesBtn' || ev.target === modalPendientes) {
+                    modalPendientes.classList.add('hidden');
+                }
+            });
+        }
+        modalPendientes.classList.remove('hidden');
+    }
 });
 
 // Evento para cerrar el modal emergente
