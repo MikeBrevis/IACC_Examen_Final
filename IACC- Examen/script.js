@@ -204,14 +204,37 @@ contenedorProyectos.addEventListener('click', (e) => {
                 let html = '<ul style="list-style:none;padding:0;">';
                 envios.forEach((envio, idx) => {
                     html += `<li style='margin-bottom:10px;'>
-                        <button class='toggle-componentes' data-idx='${idx}' style='margin-bottom:4px;'>Envío #${idx+1} (${envio.fecha})</button>
-                        <div class='componentes-envio' id='componentes-envio-${idx}' style='display:none;margin-left:20px;'>
-                            <ul>`;
-                    envio.componentes.forEach(comp => {
-                        html += `<li>${comp}</li>`;
-                    });
-                    html += `</ul>
-                        </div>
+                        <button class='toggle-componentes' data-idx='${idx}' style='margin-bottom:4px;'>Envío #${idx+1} (${envio.fecha}) <br><span style='font-size:0.9em;color:#888;'>Archivo: ${envio.archivo}</span></button>
+                        <div class='componentes-envio' id='componentes-envio-${idx}' style='display:none;margin-left:20px;'>`;
+                    // Mostrar componentes en tabla
+                    if (envio.componentes.length > 0) {
+                        html += `<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">`;
+                        envio.componentes.forEach((comp, cidx) => {
+                            html += '<tr>';
+                            // Si el componente tiene separadores, mostrar en celdas
+                            if (comp.includes('|')) {
+                                const celdas = comp.split('|').map(c => c.trim());
+                                celdas.forEach(cell => {
+                                    if (cidx === 0) {
+                                        html += `<th style='background:#f0f0f0;padding:6px;'>${cell}</th>`;
+                                    } else {
+                                        html += `<td style='padding:6px;'>${cell}</td>`;
+                                    }
+                                });
+                            } else {
+                                if (cidx === 0) {
+                                    html += `<th style='background:#f0f0f0;padding:6px;'>${comp}</th>`;
+                                } else {
+                                    html += `<td style='padding:6px;'>${comp}</td>`;
+                                }
+                            }
+                            html += '</tr>';
+                        });
+                        html += '</table>';
+                    } else {
+                        html += '<p>No hay componentes en este envío.</p>';
+                    }
+                    html += `</div>
                     </li>`;
                 });
                 html += '</ul>';
@@ -229,38 +252,59 @@ contenedorProyectos.addEventListener('click', (e) => {
                 }
             }
         };
-        // Nuevo envío: permite seleccionar componentes a enviar
+        // Nuevo envío: permite adjuntar archivo Excel por envío
         modalEnvios.querySelector('#nuevoEnvioBtn').onclick = function() {
-            const datos = componentesPorProyecto.get(idProyecto) || [];
-            if (datos.length <= 1) {
-                alert('No hay componentes cargados para este proyecto.');
-                return;
-            }
-            // Mostrar formulario para seleccionar componentes
-            let formHtml = '<form id="formNuevoEnvio">';
-            formHtml += '<p>Selecciona los componentes a enviar:</p>';
-            datos.slice(1).forEach((row, idx) => {
-                formHtml += `<label><input type='checkbox' name='comp' value='${row.join(' | ')}'> ${row.join(' | ')}</label><br>`;
-            });
-            formHtml += '<button type="submit">Registrar envío</button> <button type="button" id="cancelarEnvioBtn">Cancelar</button></form>';
+            let formHtml = `<form id='formNuevoEnvioExcel'>
+                <p>Adjunta el archivo Excel con los componentes enviados:</p>
+                <input type='file' id='inputEnvioExcel' accept='.xlsx,.xls' required />
+                <div id='mensajeEnvioExcel' style='margin:10px 0;color:green;'></div>
+                <button type='submit'>Registrar envío</button>
+                <button type='button' id='cancelarEnvioBtn'>Cancelar</button>
+            </form>`;
             modalEnvios.querySelector('#enviosProyectoContainer').innerHTML = formHtml;
             // Cancelar
             modalEnvios.querySelector('#cancelarEnvioBtn').onclick = function() {
                 renderEnvios();
             };
-            // Registrar envío
-            modalEnvios.querySelector('#formNuevoEnvio').onsubmit = function(ev) {
-                ev.preventDefault();
-                const seleccionados = Array.from(modalEnvios.querySelectorAll('input[name="comp"]:checked')).map(cb => cb.value);
-                if (seleccionados.length === 0) {
-                    alert('Selecciona al menos un componente.');
-                    return;
+            // Mostrar nombre de archivo seleccionado
+            modalEnvios.querySelector('#inputEnvioExcel').onchange = function(ev) {
+                const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel');
+                if (ev.target.files.length > 0) {
+                    mensaje.textContent = `Archivo seleccionado: ${ev.target.files[0].name}`;
+                } else {
+                    mensaje.textContent = '';
                 }
-                const fecha = new Date().toLocaleString();
-                const envios = enviosPorProyecto.get(idProyecto) || [];
-                envios.push({fecha, componentes: seleccionados});
-                enviosPorProyecto.set(idProyecto, envios);
-                renderEnvios();
+            };
+            // Registrar envío leyendo el Excel
+            modalEnvios.querySelector('#formNuevoEnvioExcel').onsubmit = function(ev) {
+                ev.preventDefault();
+                const input = modalEnvios.querySelector('#inputEnvioExcel');
+                const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel');
+                if (input.files.length > 0) {
+                    const archivo = input.files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        const data = new Uint8Array(evt.target.result);
+                        const workbook = window.XLSX.read(data, {type: 'array'});
+                        const firstSheet = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheet];
+                        const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
+                        // Tomar los componentes del archivo (todas las filas menos la cabecera)
+                        const componentes = json.slice(1).map(row => row.join(' | '));
+                        if (componentes.length === 0) {
+                            mensaje.textContent = 'El archivo no contiene componentes.';
+                            return;
+                        }
+                        const fecha = new Date().toLocaleString();
+                        const envios = enviosPorProyecto.get(idProyecto) || [];
+                        envios.push({fecha, componentes, archivo: archivo.name});
+                        enviosPorProyecto.set(idProyecto, envios);
+                        renderEnvios();
+                    };
+                    reader.readAsArrayBuffer(archivo);
+                } else {
+                    mensaje.textContent = 'Por favor selecciona un archivo.';
+                }
             };
         };
         modalEnvios.classList.remove('hidden');
