@@ -17,6 +17,23 @@ botonAgregar.addEventListener('click', () => {
     modal.classList.remove('hidden');
 });
 
+// Crear proyecto de ejemplo automáticamente al cargar la página
+window.addEventListener('DOMContentLoaded', () => {
+    // Evitar duplicados si ya existe
+    if (!document.querySelector('.project-card')) {
+        fetch('proyectoNuevo.html')
+          .then(response => response.text())
+          .then(html => {
+            const tarjetaProyecto = document.createElement('div');
+            tarjetaProyecto.innerHTML = html;
+            tarjetaProyecto.querySelector('.project-id').textContent = 'ID: 1001';
+            tarjetaProyecto.querySelector('.project-name').textContent = 'Edificio Torres del Parque';
+            tarjetaProyecto.querySelector('.project-company').textContent = 'Constructora Horizonte S.A.';
+            contenedorProyectos.appendChild(tarjetaProyecto);
+          });
+    }
+});
+
 // --- MODAL EMERGENTE PARA BOTÓN AGREGAR DE CADA PROYECTO ---
 // SheetJS (xlsx) CDN para leer archivos Excel en el navegador
 const scriptSheetJS = document.createElement('script');
@@ -206,31 +223,31 @@ contenedorProyectos.addEventListener('click', (e) => {
                     html += `<li style='margin-bottom:10px;'>
                         <button class='toggle-componentes' data-idx='${idx}' style='margin-bottom:4px;'>Envío #${idx+1} (${envio.fecha}) <br><span style='font-size:0.9em;color:#888;'>Archivo: ${envio.archivo}</span></button>
                         <div class='componentes-envio' id='componentes-envio-${idx}' style='display:none;margin-left:20px;'>`;
-                    // Mostrar componentes en tabla
+                    // Mostrar componentes en tabla igual que el botón Total
                     if (envio.componentes.length > 0) {
-                        html += `<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">`;
+                        let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
                         envio.componentes.forEach((comp, cidx) => {
-                            html += '<tr>';
-                            // Si el componente tiene separadores, mostrar en celdas
+                            tabla += '<tr>';
                             if (comp.includes('|')) {
                                 const celdas = comp.split('|').map(c => c.trim());
                                 celdas.forEach(cell => {
                                     if (cidx === 0) {
-                                        html += `<th style='background:#f0f0f0;padding:6px;'>${cell}</th>`;
+                                        tabla += `<th style='background:#f0f0f0;padding:6px;'>${cell}</th>`;
                                     } else {
-                                        html += `<td style='padding:6px;'>${cell}</td>`;
+                                        tabla += `<td style='padding:6px;'>${cell}</td>`;
                                     }
                                 });
                             } else {
                                 if (cidx === 0) {
-                                    html += `<th style='background:#f0f0f0;padding:6px;'>${comp}</th>`;
+                                    tabla += `<th style='background:#f0f0f0;padding:6px;'>${comp}</th>`;
                                 } else {
-                                    html += `<td style='padding:6px;'>${comp}</td>`;
+                                    tabla += `<td style='padding:6px;'>${comp}</td>`;
                                 }
                             }
-                            html += '</tr>';
+                            tabla += '</tr>';
                         });
-                        html += '</table>';
+                        tabla += '</table>';
+                        html += tabla;
                     } else {
                         html += '<p>No hay componentes en este envío.</p>';
                     }
@@ -321,33 +338,36 @@ modalEmergente.addEventListener('click', (e) => {
 // formulario del modal
 formulario.addEventListener('submit', (e) => {
     e.preventDefault();
-  
     const idProyecto = inputId.value.trim();
     const nombreProyecto = inputNombre.value.trim();
     const clienteProyecto = inputCliente.value.trim();
-  
     if (!idProyecto || !nombreProyecto || !clienteProyecto) {
       alert('Todos los campos son obligatorios.');
       return;
     }
-  
     fetch('proyectoNuevo.html')
       .then(response => response.text())
       .then(html => {
         const tarjetaProyecto = document.createElement('div');
         tarjetaProyecto.innerHTML = html;
-  
         tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + idProyecto;
         tarjetaProyecto.querySelector('.project-name').textContent = nombreProyecto;
         tarjetaProyecto.querySelector('.project-company').textContent = clienteProyecto;
-  
         contenedorProyectos.appendChild(tarjetaProyecto);
-  
         // Limpiar y cerrar
         formulario.reset();
         modal.classList.add('hidden');
       });
-  });
+});
+
+// Botón cancelar en el modal de nuevo proyecto
+const cancelarNuevoProyectoBtn = document.getElementById('cancelarNuevoProyectoBtn');
+if (cancelarNuevoProyectoBtn) {
+    cancelarNuevoProyectoBtn.addEventListener('click', () => {
+        formulario.reset();
+        modal.classList.add('hidden');
+    });
+}
 
 // Modal de confirmación
 const confirmModal = document.getElementById('confirmModal');
