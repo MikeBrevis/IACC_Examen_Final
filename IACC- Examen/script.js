@@ -1,3 +1,51 @@
+// --- FUNCIÓN PARA EXPORTAR DATOS DE PROYECTOS EN FORMATO JSON ESTRUCTURADO ---
+function obtenerDatosProyectosEstructurados() {
+    // Devuelve un array de proyectos con sus componentes y envíos
+    return proyectos.map(proy => {
+        const id = proy.id;
+        // Componentes totales (desde Excel)
+        const componentesRaw = componentesPorProyecto.get(id) || [];
+        let componentes = [];
+        if (componentesRaw.length > 1) {
+            const headers = componentesRaw[0];
+            componentes = componentesRaw.slice(1).map(row => {
+                const obj = {};
+                headers.forEach((h, i) => {
+                    obj[h] = row[i] !== undefined ? row[i] : '';
+                });
+                return obj;
+            });
+        }
+        // Envíos
+        const envios = (enviosPorProyecto.get(id) || []).map(envio => {
+            // Cada envío tiene fecha, archivo y componentes (como string)
+            let componentesEnvio = [];
+            if (componentesRaw.length > 0 && envio.componentes.length > 0) {
+                const headers = componentesRaw[0];
+                componentesEnvio = envio.componentes.map(compStr => {
+                    const row = compStr.split('|').map(c => c.trim());
+                    const obj = {};
+                    headers.forEach((h, i) => {
+                        obj[h] = row[i] !== undefined ? row[i] : '';
+                    });
+                    return obj;
+                });
+            }
+            return {
+                fecha: envio.fecha,
+                archivo: envio.archivo,
+                componentes: componentesEnvio
+            };
+        });
+        return {
+            id: proy.id,
+            nombre: proy.nombre,
+            cliente: proy.cliente,
+            componentes,
+            envios
+        };
+    });
+}
 // Detectar el botón con id new-project-btn
 const botonAgregar = document.getElementById('new-project-btn');
 
@@ -17,10 +65,59 @@ botonAgregar.addEventListener('click', () => {
     modal.classList.remove('hidden');
 });
 
-// Crear proyecto de ejemplo automáticamente al cargar la página
+// Utilidades para localStorage
+function guardarEnLocalStorage() {
+    const objComponentes = Object.fromEntries(componentesPorProyecto.entries());
+    const objEnvios = Object.fromEntries(enviosPorProyecto.entries());
+    localStorage.setItem('componentesPorProyecto', JSON.stringify(objComponentes));
+    localStorage.setItem('enviosPorProyecto', JSON.stringify(objEnvios));
+    localStorage.setItem('proyectos', JSON.stringify(proyectos));
+}
+function cargarDeLocalStorage() {
+    const comp = localStorage.getItem('componentesPorProyecto');
+    const env = localStorage.getItem('enviosPorProyecto');
+    const proy = localStorage.getItem('proyectos');
+    if (comp) {
+        const obj = JSON.parse(comp);
+        for (const k in obj) {
+            componentesPorProyecto.set(k, obj[k]);
+        }
+    }
+    if (env) {
+        const obj = JSON.parse(env);
+        for (const k in obj) {
+            enviosPorProyecto.set(k, obj[k]);
+        }
+    }
+    if (proy) {
+        proyectos = JSON.parse(proy);
+    }
+}
+
+// Objetos para almacenar los datos de componentes, envíos y proyectos
+const componentesPorProyecto = new Map();
+const enviosPorProyecto = new Map();
+let proyectos = [];
+
+// Crear proyecto de ejemplo automáticamente al cargar la página y cargar datos de localStorage
 window.addEventListener('DOMContentLoaded', () => {
-    // Evitar duplicados si ya existe
-    if (!document.querySelector('.project-card')) {
+    cargarDeLocalStorage();
+    // Renderizar proyectos guardados
+    if (proyectos.length > 0) {
+        proyectos.forEach(proy => {
+            fetch('proyectoNuevo.html')
+              .then(response => response.text())
+              .then(html => {
+                const tarjetaProyecto = document.createElement('div');
+                tarjetaProyecto.innerHTML = html;
+                tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + proy.id;
+                tarjetaProyecto.querySelector('.project-name').textContent = proy.nombre;
+                tarjetaProyecto.querySelector('.project-company').textContent = proy.cliente;
+                contenedorProyectos.appendChild(tarjetaProyecto);
+              });
+        });
+    } else {
+        // Si no hay proyectos guardados, crear uno de ejemplo
         fetch('proyectoNuevo.html')
           .then(response => response.text())
           .then(html => {
@@ -30,6 +127,8 @@ window.addEventListener('DOMContentLoaded', () => {
             tarjetaProyecto.querySelector('.project-name').textContent = 'Edificio Torres del Parque';
             tarjetaProyecto.querySelector('.project-company').textContent = 'Constructora Horizonte S.A.';
             contenedorProyectos.appendChild(tarjetaProyecto);
+            proyectos = [{id: '1001', nombre: 'Edificio Torres del Parque', cliente: 'Constructora Horizonte S.A.'}];
+            guardarEnLocalStorage();
           });
     }
 });
@@ -56,11 +155,6 @@ modalEmergente.innerHTML = `
   </div>
 `;
 document.body.appendChild(modalEmergente);
-
-// Objeto para almacenar los datos de componentes por proyecto
-const componentesPorProyecto = new Map();
-// Objeto para almacenar los envíos por proyecto
-const enviosPorProyecto = new Map();
 
 // Lógica para mostrar mensaje al seleccionar archivo y evitar recarga
 modalEmergente.addEventListener('change', (e) => {
@@ -93,6 +187,7 @@ modalEmergente.addEventListener('submit', async (e) => {
                 // Guardar los datos en el mapa usando el id del proyecto activo
                 if (modalEmergente.dataset.proyectoId) {
                     componentesPorProyecto.set(modalEmergente.dataset.proyectoId, json);
+                    guardarEnLocalStorage();
                 }
                 mensaje.textContent = `¡Archivo ${archivo.name} cargado correctamente!`;
             };
@@ -316,6 +411,7 @@ contenedorProyectos.addEventListener('click', (e) => {
                         const envios = enviosPorProyecto.get(idProyecto) || [];
                         envios.push({fecha, componentes, archivo: archivo.name});
                         enviosPorProyecto.set(idProyecto, envios);
+                        guardarEnLocalStorage();
                         renderEnvios();
                     };
                     reader.readAsArrayBuffer(archivo);
@@ -391,6 +487,9 @@ formulario.addEventListener('submit', (e) => {
         tarjetaProyecto.querySelector('.project-name').textContent = nombreProyecto;
         tarjetaProyecto.querySelector('.project-company').textContent = clienteProyecto;
         contenedorProyectos.appendChild(tarjetaProyecto);
+        // Guardar en localStorage
+        proyectos.push({id: idProyecto, nombre: nombreProyecto, cliente: clienteProyecto});
+        guardarEnLocalStorage();
         // Limpiar y cerrar
         formulario.reset();
         modal.classList.add('hidden');
@@ -424,6 +523,19 @@ contenedorProyectos.addEventListener('click', (e) => {
 // Confirmar eliminación
 confirmDeleteBtn.addEventListener('click', () => {
     if (proyectoAEliminar) {
+        // Obtener el id del proyecto a eliminar
+        const idSpan = proyectoAEliminar.querySelector('.project-id');
+        let idProyecto = '';
+        if (idSpan) {
+            idProyecto = idSpan.textContent.replace('ID:','').trim();
+        }
+        // Eliminar del array de proyectos
+        proyectos = proyectos.filter(p => p.id !== idProyecto);
+        // Eliminar componentes y envíos asociados
+        componentesPorProyecto.delete(idProyecto);
+        enviosPorProyecto.delete(idProyecto);
+        guardarEnLocalStorage();
+        // Eliminar visualmente
         proyectoAEliminar.remove();
         proyectoAEliminar = null;
     }
