@@ -99,38 +99,29 @@ const componentesPorProyecto = new Map();
 const enviosPorProyecto = new Map();
 let proyectos = [];
 
-// Crear proyecto de ejemplo automáticamente al cargar la página y cargar datos de localStorage
+// Cargar proyectos desde el backend al iniciar la página
 window.addEventListener('DOMContentLoaded', () => {
-    cargarDeLocalStorage();
-    // Renderizar proyectos guardados
-    if (proyectos.length > 0) {
+    fetch('http://localhost:3001/api/proyectos')
+      .then(res => res.json())
+      .then(data => {
+        proyectos = data;
+        contenedorProyectos.innerHTML = '';
         proyectos.forEach(proy => {
-            fetch('proyectoNuevo.html')
-              .then(response => response.text())
-              .then(html => {
-                const tarjetaProyecto = document.createElement('div');
-                tarjetaProyecto.innerHTML = html;
-                tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + proy.id;
-                tarjetaProyecto.querySelector('.project-name').textContent = proy.nombre;
-                tarjetaProyecto.querySelector('.project-company').textContent = proy.cliente;
-                contenedorProyectos.appendChild(tarjetaProyecto);
-              });
+          fetch('proyectoNuevo.html')
+            .then(response => response.text())
+            .then(html => {
+              const tarjetaProyecto = document.createElement('div');
+              tarjetaProyecto.innerHTML = html;
+              tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + proy.id;
+              tarjetaProyecto.querySelector('.project-name').textContent = proy.nombre;
+              tarjetaProyecto.querySelector('.project-company').textContent = proy.cliente;
+              contenedorProyectos.appendChild(tarjetaProyecto);
+            });
         });
-    } else {
-        // Si no hay proyectos guardados, crear uno de ejemplo
-        fetch('proyectoNuevo.html')
-          .then(response => response.text())
-          .then(html => {
-            const tarjetaProyecto = document.createElement('div');
-            tarjetaProyecto.innerHTML = html;
-            tarjetaProyecto.querySelector('.project-id').textContent = 'ID: 1001';
-            tarjetaProyecto.querySelector('.project-name').textContent = 'Edificio Torres del Parque';
-            tarjetaProyecto.querySelector('.project-company').textContent = 'Constructora Horizonte S.A.';
-            contenedorProyectos.appendChild(tarjetaProyecto);
-            proyectos = [{id: '1001', nombre: 'Edificio Torres del Parque', cliente: 'Constructora Horizonte S.A.'}];
-            guardarEnLocalStorage();
-          });
-    }
+      })
+      .catch(err => {
+        console.error('Error al cargar proyectos del backend:', err);
+      });
 });
 
 // --- MODAL EMERGENTE PARA BOTÓN AGREGAR DE CADA PROYECTO ---
@@ -184,12 +175,22 @@ modalEmergente.addEventListener('submit', async (e) => {
                 const firstSheet = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheet];
                 const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
-                // Guardar los datos en el mapa usando el id del proyecto activo
+                // Guardar los datos en el backend usando el id del proyecto activo
                 if (modalEmergente.dataset.proyectoId) {
-                    componentesPorProyecto.set(modalEmergente.dataset.proyectoId, json);
-                    guardarEnLocalStorage();
+                    const idProyecto = modalEmergente.dataset.proyectoId;
+                    fetch(`http://localhost:3001/api/proyectos/${idProyecto}/componentes`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ componentes: json })
+                    })
+                    .then(res => res.json())
+                    .then(() => {
+                        mensaje.textContent = `¡Archivo ${archivo.name} cargado correctamente!`;
+                    })
+                    .catch(() => {
+                        mensaje.textContent = 'Error al guardar componentes en el backend';
+                    });
                 }
-                mensaje.textContent = `¡Archivo ${archivo.name} cargado correctamente!`;
             };
             reader.readAsArrayBuffer(archivo);
         } else {
@@ -227,49 +228,68 @@ contenedorProyectos.addEventListener('click', (e) => {
                 idProyecto = idSpan.textContent.replace('ID:','').trim();
             }
         }
-        const datos = componentesPorProyecto.get(idProyecto);
-        // Crear modal para mostrar la tabla si no existe
-        let modalTabla = document.getElementById('modalTablaComponentes');
-        if (!modalTabla) {
-            modalTabla = document.createElement('div');
-            modalTabla.id = 'modalTablaComponentes';
-            modalTabla.className = 'modal hidden';
-            modalTabla.innerHTML = `
-                <div class="modal-content" style="max-width:90vw;max-height:80vh;overflow:auto;">
-                    <h2>Componentes cargados</h2>
-                    <div id="tablaComponentesContainer"></div>
-                    <button id="cerrarTablaComponentesBtn">Cerrar</button>
-                </div>
-            `;
-            document.body.appendChild(modalTabla);
-            // Cerrar modal
-            modalTabla.addEventListener('click', (ev) => {
-                if (ev.target.id === 'cerrarTablaComponentesBtn' || ev.target === modalTabla) {
-                    modalTabla.classList.add('hidden');
-                }
-            });
-        }
-        const contenedorTabla = modalTabla.querySelector('#tablaComponentesContainer');
-        if (datos && datos.length > 0) {
-            // Construir tabla HTML
-            let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
-            datos.forEach((row, idx) => {
-                tabla += '<tr>';
-                row.forEach(cell => {
-                    if (idx === 0) {
-                        tabla += `<th style='background:#f0f0f0;padding:6px;'>${cell}</th>`;
-                    } else {
-                        tabla += `<td style='padding:6px;'>${cell}</td>`;
+        // Obtener componentes desde el backend
+        fetch(`http://localhost:3001/api/proyectos`)
+          .then(res => res.json())
+          .then(proyectosList => {
+            const proyecto = proyectosList.find(p => p.id === idProyecto);
+            const datos = proyecto && proyecto.componentes ? proyecto.componentes : [];
+            // Crear modal para mostrar la tabla si no existe
+            let modalTabla = document.getElementById('modalTablaComponentes');
+            if (!modalTabla) {
+                modalTabla = document.createElement('div');
+                modalTabla.id = 'modalTablaComponentes';
+                modalTabla.className = 'modal hidden';
+                modalTabla.innerHTML = `
+                    <div class="modal-content" style="max-width:90vw;max-height:80vh;overflow:auto;">
+                        <h2>Componentes cargados</h2>
+                        <div id="tablaComponentesContainer"></div>
+                        <button id="cerrarTablaComponentesBtn">Cerrar</button>
+                    </div>
+                `;
+                document.body.appendChild(modalTabla);
+                // Cerrar modal
+                modalTabla.addEventListener('click', (ev) => {
+                    if (ev.target.id === 'cerrarTablaComponentesBtn' || ev.target === modalTabla) {
+                        modalTabla.classList.add('hidden');
                     }
                 });
-                tabla += '</tr>';
-            });
-            tabla += '</table>';
-            contenedorTabla.innerHTML = tabla;
-        } else {
-            contenedorTabla.innerHTML = '<p>No hay componentes cargados para este proyecto.</p>';
-        }
-        modalTabla.classList.remove('hidden');
+            }
+            const contenedorTabla = modalTabla.querySelector('#tablaComponentesContainer');
+            if (datos && datos.length > 0) {
+                // Construir tabla HTML
+                let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
+                datos.forEach((row, idx) => {
+                    tabla += '<tr>';
+                    if (Array.isArray(row)) {
+                        row.forEach(cell => {
+                            if (idx === 0) {
+                                tabla += `<th style='background:#f0f0f0;padding:6px;'>${cell}</th>`;
+                            } else {
+                                tabla += `<td style='padding:6px;'>${cell}</td>`;
+                            }
+                        });
+                    } else if (typeof row === 'object' && row !== null) {
+                        Object.values(row).forEach(cell => {
+                            if (idx === 0) {
+                                tabla += `<th style='background:#f0f0f0;padding:6px;'>${cell}</th>`;
+                            } else {
+                                tabla += `<td style='padding:6px;'>${cell}</td>`;
+                            }
+                        });
+                    }
+                    tabla += '</tr>';
+                });
+                tabla += '</table>';
+                contenedorTabla.innerHTML = tabla;
+            } else {
+                contenedorTabla.innerHTML = '<p>No hay componentes cargados para este proyecto.</p>';
+            }
+            modalTabla.classList.remove('hidden');
+          })
+          .catch(() => {
+            alert('Error al obtener componentes del backend');
+          });
     }
     // Botón listado de envíos
     if (
@@ -408,11 +428,19 @@ contenedorProyectos.addEventListener('click', (e) => {
                             return;
                         }
                         const fecha = new Date().toLocaleString();
-                        const envios = enviosPorProyecto.get(idProyecto) || [];
-                        envios.push({fecha, componentes, archivo: archivo.name});
-                        enviosPorProyecto.set(idProyecto, envios);
-                        guardarEnLocalStorage();
-                        renderEnvios();
+                        // Guardar el envío en el backend
+                        fetch(`http://localhost:3001/api/proyectos/${idProyecto}/envios`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ envio: { fecha, componentes, archivo: archivo.name } })
+                        })
+                        .then(res => res.json())
+                        .then(() => {
+                            renderEnvios();
+                        })
+                        .catch(() => {
+                            mensaje.textContent = 'Error al guardar el envío en el backend';
+                        });
                     };
                     reader.readAsArrayBuffer(archivo);
                 } else {
@@ -478,21 +506,31 @@ formulario.addEventListener('submit', (e) => {
       alert('Todos los campos son obligatorios.');
       return;
     }
-    fetch('proyectoNuevo.html')
-      .then(response => response.text())
-      .then(html => {
-        const tarjetaProyecto = document.createElement('div');
-        tarjetaProyecto.innerHTML = html;
-        tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + idProyecto;
-        tarjetaProyecto.querySelector('.project-name').textContent = nombreProyecto;
-        tarjetaProyecto.querySelector('.project-company').textContent = clienteProyecto;
-        contenedorProyectos.appendChild(tarjetaProyecto);
-        // Guardar en localStorage
-        proyectos.push({id: idProyecto, nombre: nombreProyecto, cliente: clienteProyecto});
-        guardarEnLocalStorage();
-        // Limpiar y cerrar
-        formulario.reset();
-        modal.classList.add('hidden');
+    // Enviar nuevo proyecto al backend
+    fetch('http://localhost:3001/api/proyectos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: idProyecto, nombre: nombreProyecto, cliente: clienteProyecto, componentes: [], envios: [] })
+    })
+      .then(res => res.json())
+      .then(proy => {
+        fetch('proyectoNuevo.html')
+          .then(response => response.text())
+          .then(html => {
+            const tarjetaProyecto = document.createElement('div');
+            tarjetaProyecto.innerHTML = html;
+            tarjetaProyecto.querySelector('.project-id').textContent = 'ID: ' + proy.id;
+            tarjetaProyecto.querySelector('.project-name').textContent = proy.nombre;
+            tarjetaProyecto.querySelector('.project-company').textContent = proy.cliente;
+            contenedorProyectos.appendChild(tarjetaProyecto);
+            // Limpiar y cerrar
+            formulario.reset();
+            modal.classList.add('hidden');
+          });
+      })
+      .catch(err => {
+        alert('Error al guardar el proyecto en el backend');
+        console.error(err);
       });
 });
 

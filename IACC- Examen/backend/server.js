@@ -35,6 +35,30 @@ app.post('/api/proyectos', async (req, res) => {
   res.json(nuevoProyecto);
 });
 
+// Actualizar componentes de un proyecto
+app.put('/api/proyectos/:id/componentes', async (req, res) => {
+  const { id } = req.params;
+  const { componentes } = req.body;
+  const proyecto = await Proyecto.findOneAndUpdate(
+    { id },
+    { $set: { componentes } },
+    { new: true }
+  );
+  res.json(proyecto);
+});
+
+// Agregar un nuevo envío a un proyecto
+app.post('/api/proyectos/:id/envios', async (req, res) => {
+  const { id } = req.params;
+  const { envio } = req.body;
+  const proyecto = await Proyecto.findOneAndUpdate(
+    { id },
+    { $push: { envios: envio } },
+    { new: true }
+  );
+  res.json(proyecto);
+});
+
 // Iniciar el servidor
 app.listen(3001, () => {
   console.log('Servidor backend escuchando en http://localhost:3001');
