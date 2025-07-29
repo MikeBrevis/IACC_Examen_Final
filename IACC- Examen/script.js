@@ -175,13 +175,24 @@ modalEmergente.addEventListener('submit', async (e) => {
                 const firstSheet = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheet];
                 const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
-                // Guardar los datos en el backend usando el id del proyecto activo
+                // Convertir a objetos usando headers
+                let componentes = [];
+                if (json.length > 1) {
+                    const headers = json[0];
+                    componentes = json.slice(1).map(row => {
+                        const obj = {};
+                        headers.forEach((h, i) => {
+                            obj[h] = row[i] !== undefined ? row[i] : '';
+                        });
+                        return obj;
+                    });
+                }
                 if (modalEmergente.dataset.proyectoId) {
                     const idProyecto = modalEmergente.dataset.proyectoId;
                     fetch(`http://localhost:3001/api/proyectos/${idProyecto}/componentes`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ componentes: json })
+                        body: JSON.stringify({ componentes })
                     })
                     .then(res => res.json())
                     .then(() => {
@@ -344,12 +355,26 @@ contenedorProyectos.addEventListener('click', (e) => {
                         <button type='submit'>Subir/Actualizar Excel</button>
                         <span class='mensajeExcelEnvio' style='margin-left:10px;color:green;'></span>
                     </form>`;
-                    // Mostrar componentes en tabla igual que el botón Total
-                    if (envio.componentes.length > 0) {
+                    // Mostrar componentes en tabla (como objetos)
+                    if (envio.componentes && envio.componentes.length > 0 && typeof envio.componentes[0] === 'object') {
+                        let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
+                        const headers = Object.keys(envio.componentes[0]);
+                        tabla += '<tr>' + headers.map(h => `<th style='background:#f0f0f0;padding:6px;'>${h}</th>`).join('') + '</tr>';
+                        envio.componentes.forEach(comp => {
+                            tabla += '<tr>';
+                            headers.forEach(h => {
+                                tabla += `<td style='padding:6px;'>${comp[h]}</td>`;
+                            });
+                            tabla += '</tr>';
+                        });
+                        tabla += '</table>';
+                        html += tabla;
+                    } else if (envio.componentes && envio.componentes.length > 0) {
+                        // Fallback para arrays de strings (legacy)
                         let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
                         envio.componentes.forEach((comp, cidx) => {
                             tabla += '<tr>';
-                            if (comp.includes('|')) {
+                            if (typeof comp === 'string' && comp.includes('|')) {
                                 const celdas = comp.split('|').map(c => c.trim());
                                 celdas.forEach(cell => {
                                     if (cidx === 0) {
@@ -393,8 +418,18 @@ contenedorProyectos.addEventListener('click', (e) => {
                                 const firstSheet = workbook.SheetNames[0];
                                 const worksheet = workbook.Sheets[firstSheet];
                                 const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
-                                // Tomar los componentes del archivo (todas las filas menos la cabecera)
-                                const componentes = json.slice(1).map(row => row.join(' | '));
+                                // Convertir a objetos usando headers
+                                let componentes = [];
+                                if (json.length > 1) {
+                                    const headers = json[0];
+                                    componentes = json.slice(1).map(row => {
+                                        const obj = {};
+                                        headers.forEach((h, i) => {
+                                            obj[h] = row[i] !== undefined ? row[i] : '';
+                                        });
+                                        return obj;
+                                    });
+                                }
                                 if (componentes.length === 0) {
                                     mensaje.textContent = 'El archivo no contiene componentes.';
                                     return;
@@ -464,8 +499,18 @@ contenedorProyectos.addEventListener('click', (e) => {
                     const firstSheet = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[firstSheet];
                     const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
-                    // Tomar los componentes del archivo (todas las filas menos la cabecera)
-                    const componentes = json.slice(1).map(row => row.join(' | '));
+                    // Convertir a objetos usando headers
+                    let componentes = [];
+                    if (json.length > 1) {
+                        const headers = json[0];
+                        componentes = json.slice(1).map(row => {
+                            const obj = {};
+                            headers.forEach((h, i) => {
+                                obj[h] = row[i] !== undefined ? row[i] : '';
+                            });
+                            return obj;
+                        });
+                    }
                     if (componentes.length === 0) {
                         mensaje.textContent = 'El archivo no contiene componentes.';
                         return;
@@ -478,19 +523,20 @@ contenedorProyectos.addEventListener('click', (e) => {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ envio: nuevoEnvio })
                     })
-                    .then(res => res.json())
-                    .then((proyectoActualizado) => {
-                        // Actualizar el listado local de envíos con la respuesta del backend
+                    .then(async res => {
+                        // Si la respuesta es JSON válida, úsala; si no, solo recarga
+                        let proyectoActualizado = null;
+                        try { proyectoActualizado = await res.json(); } catch(e) {}
                         if (proyectoActualizado && proyectoActualizado.envios) {
                             enviosPorProyecto.set(idProyecto, proyectoActualizado.envios);
                         } else {
-                            // Si no hay respuesta, agregar localmente
                             const envios = enviosPorProyecto.get(idProyecto) || [];
                             envios.push(nuevoEnvio);
                             enviosPorProyecto.set(idProyecto, envios);
                         }
                         guardarEnLocalStorage();
                         renderEnvios();
+                        mensaje.textContent = `¡Archivo ${archivo.name} cargado!`;
                     })
                     .catch(() => {
                         mensaje.textContent = 'Error al guardar el envío en el backend';
