@@ -338,6 +338,12 @@ contenedorProyectos.addEventListener('click', (e) => {
                     html += `<li style='margin-bottom:10px;'>
                         <button class='toggle-componentes' data-idx='${idx}' style='margin-bottom:4px;'>Envío #${idx+1} (${envio.fecha}) <br><span style='font-size:0.9em;color:#888;'>Archivo: ${envio.archivo}</span></button>
                         <div class='componentes-envio' id='componentes-envio-${idx}' style='display:none;margin-left:20px;'>`;
+                    // Botón para subir/reemplazar Excel de componentes de este envío
+                    html += `<form class='formSubirExcelEnvio' data-idx='${idx}' style='margin-bottom:10px;'>
+                        <input type='file' class='inputExcelEnvio' accept='.xlsx,.xls' style='margin-bottom:4px;' />
+                        <button type='submit'>Subir/Actualizar Excel</button>
+                        <span class='mensajeExcelEnvio' style='margin-left:10px;color:green;'></span>
+                    </form>`;
                     // Mostrar componentes en tabla igual que el botón Total
                     if (envio.componentes.length > 0) {
                         let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
@@ -371,6 +377,43 @@ contenedorProyectos.addEventListener('click', (e) => {
                 });
                 html += '</ul>';
                 cont.innerHTML = html;
+                // Lógica para subir/reemplazar Excel de cada envío
+                cont.querySelectorAll('.formSubirExcelEnvio').forEach(form => {
+                    form.onsubmit = function(ev) {
+                        ev.preventDefault();
+                        const idx = parseInt(form.getAttribute('data-idx'));
+                        const input = form.querySelector('.inputExcelEnvio');
+                        const mensaje = form.querySelector('.mensajeExcelEnvio');
+                        if (input.files.length > 0) {
+                            const archivo = input.files[0];
+                            const reader = new FileReader();
+                            reader.onload = function(evt) {
+                                const data = new Uint8Array(evt.target.result);
+                                const workbook = window.XLSX.read(data, {type: 'array'});
+                                const firstSheet = workbook.SheetNames[0];
+                                const worksheet = workbook.Sheets[firstSheet];
+                                const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
+                                // Tomar los componentes del archivo (todas las filas menos la cabecera)
+                                const componentes = json.slice(1).map(row => row.join(' | '));
+                                if (componentes.length === 0) {
+                                    mensaje.textContent = 'El archivo no contiene componentes.';
+                                    return;
+                                }
+                                // Actualizar el envío
+                                const envios = enviosPorProyecto.get(idProyecto) || [];
+                                envios[idx].componentes = componentes;
+                                envios[idx].archivo = archivo.name;
+                                enviosPorProyecto.set(idProyecto, envios);
+                                guardarEnLocalStorage();
+                                mensaje.textContent = `¡Archivo ${archivo.name} cargado!`;
+                                renderEnvios();
+                            };
+                            reader.readAsArrayBuffer(archivo);
+                        } else {
+                            mensaje.textContent = 'Por favor selecciona un archivo.';
+                        }
+                    };
+                });
             }
         }
         renderEnvios();
@@ -408,45 +451,56 @@ contenedorProyectos.addEventListener('click', (e) => {
                 }
             };
             // Registrar envío leyendo el Excel
-            modalEnvios.querySelector('#formNuevoEnvioExcel').onsubmit = function(ev) {
-                ev.preventDefault();
-                const input = modalEnvios.querySelector('#inputEnvioExcel');
-                const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel');
-                if (input.files.length > 0) {
-                    const archivo = input.files[0];
-                    const reader = new FileReader();
-                    reader.onload = function(evt) {
-                        const data = new Uint8Array(evt.target.result);
-                        const workbook = window.XLSX.read(data, {type: 'array'});
-                        const firstSheet = workbook.SheetNames[0];
-                        const worksheet = workbook.Sheets[firstSheet];
-                        const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
-                        // Tomar los componentes del archivo (todas las filas menos la cabecera)
-                        const componentes = json.slice(1).map(row => row.join(' | '));
-                        if (componentes.length === 0) {
-                            mensaje.textContent = 'El archivo no contiene componentes.';
-                            return;
+        modalEnvios.querySelector('#formNuevoEnvioExcel').onsubmit = function(ev) {
+            ev.preventDefault();
+            const input = modalEnvios.querySelector('#inputEnvioExcel');
+            const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel');
+            if (input.files.length > 0) {
+                const archivo = input.files[0];
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const data = new Uint8Array(evt.target.result);
+                    const workbook = window.XLSX.read(data, {type: 'array'});
+                    const firstSheet = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheet];
+                    const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
+                    // Tomar los componentes del archivo (todas las filas menos la cabecera)
+                    const componentes = json.slice(1).map(row => row.join(' | '));
+                    if (componentes.length === 0) {
+                        mensaje.textContent = 'El archivo no contiene componentes.';
+                        return;
+                    }
+                    const fecha = new Date().toLocaleString();
+                    const nuevoEnvio = { fecha, componentes, archivo: archivo.name };
+                    // Guardar el envío en el backend
+                    fetch(`http://localhost:3001/api/proyectos/${idProyecto}/envios`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ envio: nuevoEnvio })
+                    })
+                    .then(res => res.json())
+                    .then((proyectoActualizado) => {
+                        // Actualizar el listado local de envíos con la respuesta del backend
+                        if (proyectoActualizado && proyectoActualizado.envios) {
+                            enviosPorProyecto.set(idProyecto, proyectoActualizado.envios);
+                        } else {
+                            // Si no hay respuesta, agregar localmente
+                            const envios = enviosPorProyecto.get(idProyecto) || [];
+                            envios.push(nuevoEnvio);
+                            enviosPorProyecto.set(idProyecto, envios);
                         }
-                        const fecha = new Date().toLocaleString();
-                        // Guardar el envío en el backend
-                        fetch(`http://localhost:3001/api/proyectos/${idProyecto}/envios`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ envio: { fecha, componentes, archivo: archivo.name } })
-                        })
-                        .then(res => res.json())
-                        .then(() => {
-                            renderEnvios();
-                        })
-                        .catch(() => {
-                            mensaje.textContent = 'Error al guardar el envío en el backend';
-                        });
-                    };
-                    reader.readAsArrayBuffer(archivo);
-                } else {
-                    mensaje.textContent = 'Por favor selecciona un archivo.';
-                }
-            };
+                        guardarEnLocalStorage();
+                        renderEnvios();
+                    })
+                    .catch(() => {
+                        mensaje.textContent = 'Error al guardar el envío en el backend';
+                    });
+                };
+                reader.readAsArrayBuffer(archivo);
+            } else {
+                mensaje.textContent = 'Por favor selecciona un archivo.';
+            }
+        };
         };
         modalEnvios.classList.remove('hidden');
     }
