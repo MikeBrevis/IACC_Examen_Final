@@ -65,34 +65,6 @@ botonAgregar.addEventListener('click', () => {
     modal.classList.remove('hidden');
 });
 
-// Utilidades para localStorage
-function guardarEnLocalStorage() {
-    const objComponentes = Object.fromEntries(componentesPorProyecto.entries());
-    const objEnvios = Object.fromEntries(enviosPorProyecto.entries());
-    localStorage.setItem('componentesPorProyecto', JSON.stringify(objComponentes));
-    localStorage.setItem('enviosPorProyecto', JSON.stringify(objEnvios));
-    localStorage.setItem('proyectos', JSON.stringify(proyectos));
-}
-function cargarDeLocalStorage() {
-    const comp = localStorage.getItem('componentesPorProyecto');
-    const env = localStorage.getItem('enviosPorProyecto');
-    const proy = localStorage.getItem('proyectos');
-    if (comp) {
-        const obj = JSON.parse(comp);
-        for (const k in obj) {
-            componentesPorProyecto.set(k, obj[k]);
-        }
-    }
-    if (env) {
-        const obj = JSON.parse(env);
-        for (const k in obj) {
-            enviosPorProyecto.set(k, obj[k]);
-        }
-    }
-    if (proy) {
-        proyectos = JSON.parse(proy);
-    }
-}
 
 // Objetos para almacenar los datos de componentes, envíos y proyectos
 const componentesPorProyecto = new Map();
@@ -439,7 +411,6 @@ contenedorProyectos.addEventListener('click', (e) => {
                                 envios[idx].componentes = componentes;
                                 envios[idx].archivo = archivo.name;
                                 enviosPorProyecto.set(idProyecto, envios);
-                                guardarEnLocalStorage();
                                 mensaje.textContent = `¡Archivo ${archivo.name} cargado!`;
                                 renderEnvios();
                             };
@@ -534,7 +505,6 @@ contenedorProyectos.addEventListener('click', (e) => {
                             envios.push(nuevoEnvio);
                             enviosPorProyecto.set(idProyecto, envios);
                         }
-                        guardarEnLocalStorage();
                         renderEnvios();
                         mensaje.textContent = `¡Archivo ${archivo.name} cargado!`;
                     })
@@ -672,7 +642,6 @@ confirmDeleteBtn.addEventListener('click', () => {
         // Eliminar componentes y envíos asociados
         componentesPorProyecto.delete(idProyecto);
         enviosPorProyecto.delete(idProyecto);
-        guardarEnLocalStorage();
         // Eliminar visualmente
         proyectoAEliminar.remove();
         proyectoAEliminar = null;
