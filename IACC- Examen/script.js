@@ -1,51 +1,4 @@
-// --- FUNCIÓN PARA EXPORTAR DATOS DE PROYECTOS EN FORMATO JSON ESTRUCTURADO ---
-function obtenerDatosProyectosEstructurados() {
-    // Devuelve un array de proyectos con sus componentes y envíos
-    return proyectos.map(proy => {
-        const id = proy.id;
-        // Componentes totales (desde Excel)
-        const componentesRaw = componentesPorProyecto.get(id) || [];
-        let componentes = [];
-        if (componentesRaw.length > 1) {
-            const headers = componentesRaw[0];
-            componentes = componentesRaw.slice(1).map(row => {
-                const obj = {};
-                headers.forEach((h, i) => {
-                    obj[h] = row[i] !== undefined ? row[i] : '';
-                });
-                return obj;
-            });
-        }
-        // Envíos
-        const envios = (enviosPorProyecto.get(id) || []).map(envio => {
-            // Cada envío tiene fecha, archivo y componentes (como string)
-            let componentesEnvio = [];
-            if (componentesRaw.length > 0 && envio.componentes.length > 0) {
-                const headers = componentesRaw[0];
-                componentesEnvio = envio.componentes.map(compStr => {
-                    const row = compStr.split('|').map(c => c.trim());
-                    const obj = {};
-                    headers.forEach((h, i) => {
-                        obj[h] = row[i] !== undefined ? row[i] : '';
-                    });
-                    return obj;
-                });
-            }
-            return {
-                fecha: envio.fecha,
-                archivo: envio.archivo,
-                componentes: componentesEnvio
-            };
-        });
-        return {
-            id: proy.id,
-            nombre: proy.nombre,
-            cliente: proy.cliente,
-            componentes,
-            envios
-        };
-    });
-}
+// ...existing code...
 // Detectar el botón con id new-project-btn
 const botonAgregar = document.getElementById('new-project-btn');
 
@@ -78,7 +31,11 @@ window.addEventListener('DOMContentLoaded', () => {
       .then(data => {
         proyectos = data;
         contenedorProyectos.innerHTML = '';
+        // Poblar el mapa de envíos por proyecto
         proyectos.forEach(proy => {
+          if (Array.isArray(proy.envios)) {
+            enviosPorProyecto.set(proy.id, proy.envios);
+          }
           fetch('proyectoNuevo.html')
             .then(response => response.text())
             .then(html => {
