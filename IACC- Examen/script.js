@@ -277,13 +277,8 @@ contenedorProyectos.addEventListener('click', (e) => {
                 envios.forEach((envio, idx) => {
                     html += `<li style='margin-bottom:10px;'>
                         <button class='toggle-componentes' data-idx='${idx}' style='margin-bottom:4px;'>Envío #${idx+1} (${envio.fecha}) <br><span style='font-size:0.9em;color:#888;'>Archivo: ${envio.archivo}</span></button>
+                        <button class='btn-eliminar-envio' data-idx='${idx}' style='margin-left:10px;color:#fff;background:#d9534f;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;'>Eliminar</button>
                         <div class='componentes-envio' id='componentes-envio-${idx}' style='display:none;margin-left:20px;'>`;
-                    // Botón para subir/reemplazar Excel de componentes de este envío
-                    html += `<form class='formSubirExcelEnvio' data-idx='${idx}' style='margin-bottom:10px;'>
-                        <input type='file' class='inputExcelEnvio' accept='.xlsx,.xls' style='margin-bottom:4px;' />
-                        <button type='submit'>Subir/Actualizar Excel</button>
-                        <span class='mensajeExcelEnvio' style='margin-left:10px;color:green;'></span>
-                    </form>`;
                     // Mostrar componentes en tabla (como objetos)
                     if (envio.componentes && envio.componentes.length > 0 && typeof envio.componentes[0] === 'object') {
                         let tabla = '<table border="1" style="border-collapse:collapse;width:100%;text-align:left;">';
@@ -331,49 +326,29 @@ contenedorProyectos.addEventListener('click', (e) => {
                 });
                 html += '</ul>';
                 cont.innerHTML = html;
-                // Lógica para subir/reemplazar Excel de cada envío
-                cont.querySelectorAll('.formSubirExcelEnvio').forEach(form => {
-                    form.onsubmit = function(ev) {
-                        ev.preventDefault();
-                        const idx = parseInt(form.getAttribute('data-idx'));
-                        const input = form.querySelector('.inputExcelEnvio');
-                        const mensaje = form.querySelector('.mensajeExcelEnvio');
-                        if (input.files.length > 0) {
-                            const archivo = input.files[0];
-                            const reader = new FileReader();
-                            reader.onload = function(evt) {
-                                const data = new Uint8Array(evt.target.result);
-                                const workbook = window.XLSX.read(data, {type: 'array'});
-                                const firstSheet = workbook.SheetNames[0];
-                                const worksheet = workbook.Sheets[firstSheet];
-                                const json = window.XLSX.utils.sheet_to_json(worksheet, {header:1});
-                                // Convertir a objetos usando headers
-                                let componentes = [];
-                                if (json.length > 1) {
-                                    const headers = json[0];
-                                    componentes = json.slice(1).map(row => {
-                                        const obj = {};
-                                        headers.forEach((h, i) => {
-                                            obj[h] = row[i] !== undefined ? row[i] : '';
-                                        });
-                                        return obj;
-                                    });
+                // Lógica para eliminar un envío
+                cont.querySelectorAll('.btn-eliminar-envio').forEach(btn => {
+                    btn.onclick = function() {
+                        const idx = parseInt(btn.getAttribute('data-idx'));
+                        if (confirm('¿Seguro que deseas eliminar este envío?')) {
+                            // Obtener el envío a eliminar
+                            const envios = enviosPorProyecto.get(idProyecto) || [];
+                            // Llamar al backend para eliminar el envío
+                            fetch(`http://localhost:3001/api/proyectos/${idProyecto}/envios/${idx}`, {
+                                method: 'DELETE'
+                            })
+                            .then(res => {
+                                if (res.ok) {
+                                    envios.splice(idx, 1);
+                                    enviosPorProyecto.set(idProyecto, envios);
+                                    renderEnvios();
+                                } else {
+                                    alert('Error al eliminar el envío en el backend');
                                 }
-                                if (componentes.length === 0) {
-                                    mensaje.textContent = 'El archivo no contiene componentes.';
-                                    return;
-                                }
-                                // Actualizar el envío
-                                const envios = enviosPorProyecto.get(idProyecto) || [];
-                                envios[idx].componentes = componentes;
-                                envios[idx].archivo = archivo.name;
-                                enviosPorProyecto.set(idProyecto, envios);
-                                mensaje.textContent = `¡Archivo ${archivo.name} cargado!`;
-                                renderEnvios();
-                            };
-                            reader.readAsArrayBuffer(archivo);
-                        } else {
-                            mensaje.textContent = 'Por favor selecciona un archivo.';
+                            })
+                            .catch(() => {
+                                alert('Error al eliminar el envío en el backend');
+                            });
                         }
                     };
                 });
