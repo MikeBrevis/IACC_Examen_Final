@@ -27,10 +27,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const pass = inputPass.value.trim();
         const valido = usuarios.some(u => u.usuario === user && u.pass === pass);
         if (valido) {
-            // Redirigir o mostrar éxito
             form.reset();
-            alert('¡Bienvenido, ' + user + '!');
-            // window.location.href = 'index.html'; // Descomentar para redirigir
+            // Mostrar modal de bienvenida
+            const welcomeModal = document.getElementById('loginWelcomeModal');
+            const welcomeMsg = document.getElementById('loginWelcomeMsg');
+            if (welcomeMsg) welcomeMsg.textContent = '¡Bienvenido, ' + user + '!';
+            if (welcomeModal) {
+                welcomeModal.style.display = 'flex';
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+            } else {
+                window.location.href = 'index.html';
+            }
         } else {
             form.reset();
             inputUser.focus();
