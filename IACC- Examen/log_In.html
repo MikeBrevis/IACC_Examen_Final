@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de sesión</title>
+    <link rel="stylesheet" href="login.css">
+    <script defer src="login.js"></script>
+</head>
+<body>
+    <div id="loginErrorModal" class="login-error-modal">
+        <div class="login-error-content">
+            <div class="login-error-msg">Usuario o contraseña incorrectos.</div>
+            <button id="cerrarLoginError" class="login-error-btn">Cerrar</button>
+        </div>
+    </div>
+    <div class="login-container">
+        <div class="login-header">
+            <h2>Inicio de sesion</h2>
+        </div>
+        <form class="login-form">
+            <label for="username">Ingrese nombre de Usuario</label>
+            <input type="text" id="username" name="username" required autocomplete="username">
+
+            <label for="password">Ingrese contraseña</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+
+            <button type="submit" class="login-btn">Ingresar</button>
+            <div class="login-recover">
+                ¿Olvidaste tu contraseña? <a href="#" class="recover-link">Recupérala aquí</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
