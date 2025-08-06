@@ -274,32 +274,41 @@ contenedorProyectos.addEventListener('click', (e) => {
                 idProyecto = idSpan.textContent.replace('ID:','').trim();
             }
         }
-        // Modal para mostrar los envíos
-        let modalEnvios = document.getElementById('modalEnviosProyecto');
+        // Modal para mostrar los envíos (ID único por proyecto)
+        let modalEnvios = document.getElementById('modalEnviosProyecto_' + idProyecto);
         if (!modalEnvios) {
             modalEnvios = document.createElement('div');
-            modalEnvios.id = 'modalEnviosProyecto';
+            modalEnvios.id = 'modalEnviosProyecto_' + idProyecto;
             modalEnvios.className = 'modal hidden';
             modalEnvios.innerHTML = `
                 <div class="modal-content" style="max-width:600px;max-height:80vh;overflow:auto;">
                     <h2>Listado de envíos</h2>
-                    <div id="enviosProyectoContainer"></div>
-                    <button id="nuevoEnvioBtn">Nuevo envío</button>
-                    <button id="cerrarEnviosBtn">Cerrar</button>
+                    <div id="enviosProyectoContainer_${idProyecto}"></div>
+                    <button id="nuevoEnvioBtn_${idProyecto}">Nuevo envío</button>
+                    <button id="cerrarEnviosBtn_${idProyecto}">Cerrar</button>
                 </div>
             `;
             document.body.appendChild(modalEnvios);
             // Cerrar modal
             modalEnvios.addEventListener('click', (ev) => {
-                if (ev.target.id === 'cerrarEnviosBtn' || ev.target === modalEnvios) {
+                if (ev.target.id === 'cerrarEnviosBtn_' + idProyecto || ev.target === modalEnvios) {
                     modalEnvios.classList.add('hidden');
                 }
             });
         }
+        // Siempre obtener los envíos actualizados del backend antes de renderizar
+        fetch(`http://localhost:3001/api/proyectos`)
+          .then(res => res.json())
+          .then(proyectosList => {
+            const proyecto = proyectosList.find(p => p.id === idProyecto);
+            const enviosActualizados = proyecto && proyecto.envios ? proyecto.envios : [];
+            enviosPorProyecto.set(idProyecto, enviosActualizados);
+            renderEnvios();
+          });
         // Renderizar lista de envíos
         function renderEnvios() {
             const envios = enviosPorProyecto.get(idProyecto) || [];
-            const cont = modalEnvios.querySelector('#enviosProyectoContainer');
+            const cont = modalEnvios.querySelector('#enviosProyectoContainer_' + idProyecto);
             if (envios.length === 0) {
                 cont.innerHTML = '<p>No hay envíos registrados para este proyecto.</p>';
             } else {
@@ -420,9 +429,8 @@ contenedorProyectos.addEventListener('click', (e) => {
                 });
             }
         }
-        renderEnvios();
         // Toggle para mostrar componentes de cada envío
-        modalEnvios.querySelector('#enviosProyectoContainer').onclick = function(ev) {
+        modalEnvios.querySelector('#enviosProyectoContainer_' + idProyecto).onclick = function(ev) {
             if (ev.target.classList.contains('toggle-componentes')) {
                 const idx = ev.target.getAttribute('data-idx');
                 const div = modalEnvios.querySelector(`#componentes-envio-${idx}`);
@@ -432,22 +440,22 @@ contenedorProyectos.addEventListener('click', (e) => {
             }
         };
         // Nuevo envío: permite adjuntar archivo Excel por envío
-        modalEnvios.querySelector('#nuevoEnvioBtn').onclick = function() {
-            let formHtml = `<form id='formNuevoEnvioExcel'>
+        modalEnvios.querySelector('#nuevoEnvioBtn_' + idProyecto).onclick = function() {
+            let formHtml = `<form id='formNuevoEnvioExcel_${idProyecto}'>
                 <p>Adjunta el archivo Excel con los componentes enviados:</p>
-                <input type='file' id='inputEnvioExcel' accept='.xlsx,.xls' required />
-                <div id='mensajeEnvioExcel' style='margin:10px 0;color:green;'></div>
+                <input type='file' id='inputEnvioExcel_${idProyecto}' accept='.xlsx,.xls' required />
+                <div id='mensajeEnvioExcel_${idProyecto}' style='margin:10px 0;color:green;'></div>
                 <button type='submit'>Registrar envío</button>
-                <button type='button' id='cancelarEnvioBtn'>Cancelar</button>
+                <button type='button' id='cancelarEnvioBtn_${idProyecto}'>Cancelar</button>
             </form>`;
-            modalEnvios.querySelector('#enviosProyectoContainer').innerHTML = formHtml;
+            modalEnvios.querySelector('#enviosProyectoContainer_' + idProyecto).innerHTML = formHtml;
             // Cancelar
-            modalEnvios.querySelector('#cancelarEnvioBtn').onclick = function() {
+            modalEnvios.querySelector('#cancelarEnvioBtn_' + idProyecto).onclick = function() {
                 renderEnvios();
             };
             // Mostrar nombre de archivo seleccionado
-            modalEnvios.querySelector('#inputEnvioExcel').onchange = function(ev) {
-                const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel');
+            modalEnvios.querySelector('#inputEnvioExcel_' + idProyecto).onchange = function(ev) {
+                const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel_' + idProyecto);
                 if (ev.target.files.length > 0) {
                     mensaje.textContent = `Archivo seleccionado: ${ev.target.files[0].name}`;
                 } else {
@@ -455,10 +463,10 @@ contenedorProyectos.addEventListener('click', (e) => {
                 }
             };
             // Registrar envío leyendo el Excel
-        modalEnvios.querySelector('#formNuevoEnvioExcel').onsubmit = function(ev) {
+        modalEnvios.querySelector('#formNuevoEnvioExcel_' + idProyecto).onsubmit = function(ev) {
             ev.preventDefault();
-            const input = modalEnvios.querySelector('#inputEnvioExcel');
-            const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel');
+            const input = modalEnvios.querySelector('#inputEnvioExcel_' + idProyecto);
+            const mensaje = modalEnvios.querySelector('#mensajeEnvioExcel_' + idProyecto);
             if (input.files.length > 0) {
                 const archivo = input.files[0];
                 const reader = new FileReader();
@@ -579,6 +587,7 @@ formulario.addEventListener('submit', (e) => {
       inputId.focus();
       return;
     }
+
     // Enviar nuevo proyecto al backend
     fetch('http://localhost:3001/api/proyectos', {
       method: 'POST',

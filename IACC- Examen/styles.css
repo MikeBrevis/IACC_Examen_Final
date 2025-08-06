@@ -278,7 +278,7 @@ body {
 .btn-delete {
     font-size: 16px;
     color: red;
-    margin-left: 530px;
+    margin-left: 880px;
 
     >.mdi-delete-empty {
         display: none;
@@ -339,4 +339,20 @@ body {
 }
 .btn-total:hover, .btn-agregar:hover {
     background-color: #217dbb;
+}
+
+/* Estilos para advertencia de búsqueda */
+.advertencia-busqueda {
+  color: #d9534f;
+  font-size: 0.98rem;
+  margin-top: 2px;
+  min-height: 18px;
+}
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #f0f0f0;
 }
