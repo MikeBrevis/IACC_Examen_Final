@@ -9,6 +9,38 @@ const contenedorProyectos = document.querySelector('.main-content');
 const modal = document.getElementById('modal');
 const formulario = document.getElementById('formularioProyecto');
 const inputId = document.getElementById('inputId');
+
+// Validación en tiempo real para el ID del proyecto (solo 4 números)
+inputId.addEventListener('input', function(e) {
+    // Eliminar cualquier caracter que no sea número
+    let val = inputId.value.replace(/[^0-9]/g, '');
+    // Limitar a 4 dígitos
+    if (val.length > 4) val = val.slice(0, 4);
+    if (inputId.value !== val) {
+        inputId.value = val;
+        mostrarAdvertenciaId('Solo se permiten 4 números (0-9) en el ID.');
+    } else {
+        ocultarAdvertenciaId();
+    }
+});
+
+// Mostrar advertencia debajo del input de ID
+function mostrarAdvertenciaId(msg) {
+    let adv = document.getElementById('idAdvertencia');
+    if (!adv) {
+        adv = document.createElement('div');
+        adv.id = 'idAdvertencia';
+        adv.style.color = '#d9534f';
+        adv.style.fontSize = '0.98rem';
+        adv.style.marginTop = '2px';
+        inputId.parentNode.insertBefore(adv, inputId.nextSibling);
+    }
+    adv.textContent = msg;
+}
+function ocultarAdvertenciaId() {
+    let adv = document.getElementById('idAdvertencia');
+    if (adv) adv.textContent = '';
+}
 const inputNombre = document.getElementById('inputNombre');
 const inputCliente = document.getElementById('inputCliente');
 
@@ -542,6 +574,11 @@ formulario.addEventListener('submit', (e) => {
       alert('Todos los campos son obligatorios.');
       return;
     }
+    if (!/^\d{4}$/.test(idProyecto)) {
+      mostrarAdvertenciaId('El ID debe ser exactamente 4 números.');
+      inputId.focus();
+      return;
+    }
     // Enviar nuevo proyecto al backend
     fetch('http://localhost:3001/api/proyectos', {
       method: 'POST',
@@ -559,6 +596,7 @@ formulario.addEventListener('submit', (e) => {
             tarjetaProyecto.querySelector('.project-name').textContent = proy.nombre;
             tarjetaProyecto.querySelector('.project-company').textContent = proy.cliente;
             contenedorProyectos.appendChild(tarjetaProyecto);
+            
             // Limpiar y cerrar
             formulario.reset();
             modal.classList.add('hidden');
